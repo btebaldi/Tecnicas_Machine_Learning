@@ -44,4 +44,4 @@ train_control_loocv <- trainControl(method = "LOOCV")
 model_loocv <- train(price ~ beds + baths + sqft + type,
                      data = housing_data, method = "lm", trControl = train_control_loocv)
 print(model_loocv)
-summary(model_loocv)
+  summary(model_loocv)
