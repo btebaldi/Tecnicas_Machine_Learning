@@ -7,7 +7,7 @@ library(caret)
 library(dplyr)
 
 # Load Data ---------------------------------------------------------------
-Sacramento <- read.csv("./database/WB7 - CV- Sacramento.csv")
+Sacramento <- read.csv("./03-Database/Workbook/WB7 - CV- Sacramento.csv")
 
 # Análise Exploratória de Dados -------------------------------------------
 head(Sacramento)

@@ -7,18 +7,21 @@ library(dplyr)
 
 
 # Dataload ----------------------------------------------------------------
-DonnerParty <- read_csv("C:/Users/bteba/Documents/GitHub/Statistics/Data Analysis/database/DonnerParty.csv",
+DonnerParty <- read_csv("./03-Database/DonnerParty.csv",
                         col_types = cols(
                           Age = col_double(),
-                          Sex_Male = col_double(),
-                          Survived = col_double()
-                        ))
+                          Sex_Male = col_character(),
+                          Survived = col_character()
+                        )  )
 head(DonnerParty)
 
-donner <- DonnerParty
-survive=donner$Survived
-age=donner$Age
-sex=donner$Sex_Male
+DonnerParty$Sex_Male <- factor(DonnerParty$Sex_Male,
+                               levels = c("Male", "Female"),
+                               labels = c("Male", "Female"))
+
+DonnerParty$Survived <- factor(DonnerParty$Survived,
+                               levels = c("No", "Yes"),
+                               labels = c("No", "Yes"))
 
 
 # Distribuicoes marginais -------------------------------------------------
@@ -26,14 +29,13 @@ sex=donner$Sex_Male
 table(DonnerParty$Survived, DonnerParty$Sex_Male,
       dnn = c("Survived", "Male"))
 
-g1 <- DonnerParty %>% mutate(Survived=factor(Survived,
-                                             levels = c(1,0),
-                                             labels = c("Survived", "Died"))) %>% 
+g1 <- DonnerParty %>%
   ggplot() + 
   geom_boxplot(aes(y=Age, x=Survived)) + 
   theme_bw() + 
   labs(title = "Boxplot")
 print(g1)
+
 # ggsave("./Boxplot_DonnerParty.png",
 #        plot = g1,
 #        scale = 1,
@@ -41,9 +43,13 @@ print(g1)
 
 # Modelo Linear OLS -------------------------------------------------------
 
+as.numeric(DonnerParty$Survived)-1
+
 ## linear regression
-LM <- lm(Survived ~ Age, data = DonnerParty)
-Ols.mdl <- lm(Survived ~ Age, data = DonnerParty)
+DonnerParty <- DonnerParty %>% 
+  mutate(Survived2 = if_else(DonnerParty$Survived == "Yes",1,0))
+
+Ols.mdl <- lm(Survived2 ~ Age, data = DonnerParty)  
 summary(Ols.mdl)
 
 CI.Ols.mdl <- confint(Ols.mdl)
@@ -53,7 +59,7 @@ DonnerParty$Ols.res <- Ols.mdl$residuals
 ### Plot Survive*Age
 
 g2 <- ggplot(DonnerParty) + 
-  geom_point(aes(x=Age, y=Survived)) +
+  geom_point(aes(x=Age, y=Survived2)) +
   geom_abline(slope = Ols.mdl$coefficients["Age"],
               intercept = Ols.mdl$coefficients["(Intercept)"], colour="red") +
   geom_abline(slope = CI.Ols.mdl["Age", 1],
@@ -64,16 +70,17 @@ g2 <- ggplot(DonnerParty) +
   ylim(-1.5, 1.5)+
   labs(title = "Survive v.s. age")
 print(g2)
+
 # ggsave("./OlsModel_DonnerParty.png",
 #        plot = g2,
 #        scale = 1,
 #        units = "in", width = 8, height = 6, dpi = 100)
 
 ### Q-Q plot
-qqnorm(residuals(LM),main="Q-Q Plot")
+qqnorm(DonnerParty$Ols.res,main="Q-Q Plot")
 
 ### Studentized residuals v.s Observation
-plot(rstudent(LM),main="Studentized residual v.s. observation")
+plot(rstudent(Ols.mdl),main="Studentized residual v.s. observation")
 abline(h=0)
 
 g3 <- ggplot(DonnerParty) +
@@ -91,7 +98,7 @@ print(g3)
 
 # Fitting logistic regression survive~age ---------------------------------
 
-logit.mdl = glm(Survived ~ Age,family=binomial("logit"), data = DonnerParty)
+logit.mdl = glm(Survived ~ Age,family = binomial("logit"), data = DonnerParty)
 summary(logit.mdl)
 
 DonnerParty$log1.res <- logit.mdl$residuals
@@ -105,8 +112,6 @@ confint(logit.mdl) ## confidence interval for parameters
 exp(confint(logit.mdl)) ## exponentiate to get on the odds-scale
 
 ### Diagnostics Measures
-
-lm.influence(logit.mdl)
 
 
 g4 <- ggplot(DonnerParty) +
@@ -124,7 +129,7 @@ print(g4)
 
 # fitting logistic regression survive~age+sex -----------------------------
 
-logit2.mdl=glm(survive~age+sex,family=binomial("logit"))
+logit2.mdl=glm(Survived ~ Age + Sex_Male, family=binomial("logit"), data = DonnerParty)
 summary(logit2.mdl)
 confint(logit2.mdl) ## confidence interval for the parameters 
 
@@ -152,7 +157,7 @@ print(g5)
 # fitting logistic regression survive~age+sex+age*sex ---------------------
 
 # logit3.mdl=glm(survive~age*sex,family=binomial("probit"))
-logit3.mdl=glm(survive~age*sex,family=binomial("logit"))
+logit3.mdl=glm(Survived ~ Age*Sex_Male, family=binomial("logit"), data = DonnerParty)
 summary(logit3.mdl)
 confint(logit3.mdl) ## confidence interval for the parameters 
 
@@ -175,9 +180,6 @@ print(g6)
 
 
 
-
-
-
 # Valores previstos podem ser calculados diretamente pelo predict usando a
 # formula de distribuicao logistica
 PREVISAO_manual <- exp(predict(logit3.mdl,  DonnerParty))/(1+exp(predict(logit3.mdl,  DonnerParty)))
@@ -186,7 +188,7 @@ PREVISAO_manual <- exp(predict(logit3.mdl,  DonnerParty))/(1+exp(predict(logit3.
 PREVISAO_manual == logit3.mdl$fitted.values
 
 # Matriz de confusao
-table(survive, as.numeric(logit3.mdl$fitted.values > 0.5))
+table(DonnerParty$Survived, as.numeric(logit3.mdl$fitted.values > 0.5))
 
 
 
